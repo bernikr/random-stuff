@@ -81,13 +81,22 @@ def pixels_to_rects(pixels):
         yield *tl, *br
 
 
+def get_layer_drawing_options(layer):
+    lt = layer['type']
+    if lt == 'wall':
+        return {'fill': 'black', 'width': 0}
+    elif lt == 'floor':
+        return {'fill': 'gray', 'width': 0}
+    else:
+        assert False, f'Unkown layer type `{lt}`'
+
+
 def draw_layer(c: Canvas, layer, s):
-    #if layer['type'] == 'wall':
     pixels = layer['pixels']
     pixels = zip(pixels[0::2], pixels[1::2])
 
     for x1, y1, x2, y2 in pixels_to_rects(pixels):
-        c.create_rectangle(x1*s, y1*s, x2*s, y2*s)
+        c.create_rectangle(x1*s, y1*s, x2*s, y2*s, **get_layer_drawing_options(layer))
 
 
 def draw_entities(c: Canvas, e):
