@@ -65,7 +65,6 @@ async def main():
             map_data = json.loads(map_data)
 
             logging.info("new map data")
-        print("end")
 
 
 if __name__ == '__main__':
