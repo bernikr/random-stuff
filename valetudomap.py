@@ -1,3 +1,4 @@
+import asyncio
 import cgi
 import json
 import os
@@ -5,6 +6,7 @@ import time
 import zlib
 from dataclasses import dataclass, field
 
+import aiohttp as aiohttp
 from dotenv import load_dotenv
 import requests
 
@@ -30,40 +32,28 @@ def parse_png_chunks(img: bytes) -> [Chunk]:
         i += 12 + chunk_length
 
 
-def parse_x_mixed_replace(r):
-    mime, content_options = cgi.parse_header(r.headers['Content-Type'])
-    assert mime == 'multipart/x-mixed-replace'
+async def get_x_mixed_replace(s, url):
+    async with s.get(url) as r:
+        mime, content_options = cgi.parse_header(r.headers['Content-Type'])
+        assert mime == 'multipart/x-mixed-replace'
 
-    buffer, header, length = b'', True, 0
-    for c in r.iter_content():
-        buffer += c
-        if header:
-            if (i := buffer.find(b'\n')) >= 0:
-                line = buffer[:i].rstrip()
-                if line.startswith(b'Content-Length: '):
-                    length = int(line[16:])
-                elif line == b'' and length:
-                    header = False
-                buffer = buffer[i+1:]
-        else:
-            length -= len(c)
-            if length == 0:
-                yield buffer
-                buffer = b''
-                header = True
-            elif length < 0:
-                yield buffer[:length]
-                buffer = buffer[length:]
-                header = True
+        length = 0
+        while True:
+            line = (await r.content.readuntil(b'\n')).rstrip()
+            if line.startswith(b'Content-Length: '):
+                length = int(line[16:])
+            elif line == b'' and length:
+                yield await r.content.readexactly(length)
                 length = 0
 
 
-def main():
-    r = requests.get(f'{HA_URL}/api/states/{MAP_ENTITY}', headers={'Authorization': f'Bearer {HA_TOKEN}'})
-    img_token = r.json()['attributes']['access_token']
-    with requests.get(f'{HA_URL}/api/camera_proxy_stream/{MAP_ENTITY}?token={img_token}', stream=True) as r:
+async def main():
+    async with aiohttp.ClientSession(headers={'Authorization': f'Bearer {HA_TOKEN}'}) as s:
+        async with s.get(f'{HA_URL}/api/states/{MAP_ENTITY}') as r:
+            img_token = (await r.json())['attributes']['access_token']
+
         lasttime = time.time()
-        for img in parse_x_mixed_replace(r):
+        async for img in get_x_mixed_replace(s, f'{HA_URL}/api/camera_proxy_stream/{MAP_ENTITY}?token={img_token}'):
             map_data = next(c.data[13:] for c in parse_png_chunks(img)
                             if c.type == 'zTXt' and c.data.startswith(b'ValetudoMap\0'))
             map_data = zlib.decompress(map_data)
@@ -72,8 +62,8 @@ def main():
             print("--map_data")
             print(f"{time.time()-lasttime:.2f}s")
             lasttime = time.time()
-    print("end")
+        print("end")
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
