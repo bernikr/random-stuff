@@ -44,7 +44,7 @@ async def get_x_mixed_replace(s, url):
         assert mime == 'multipart/x-mixed-replace'
 
         length = 0
-        while True:
+        while not r.content.at_eof():
             line = (await r.content.readuntil(b'\n')).rstrip()
             if line.startswith(b'Content-Length: '):
                 length = int(line[16:])
