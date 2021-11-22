@@ -130,6 +130,7 @@ def draw_entities(c: Canvas, e):
     else:
         assert False, f'Unknown entity class `{cl}`'
 
+
 async def load_map(c: Canvas):
     async with aiohttp.ClientSession(headers={'Authorization': f'Bearer {HA_TOKEN}'}) as s:
         async with s.get(f'{HA_URL}/api/states/{MAP_ENTITY}') as r:
@@ -150,7 +151,7 @@ async def load_map(c: Canvas):
 
 async def main():
     cw = CanvasWindow()
-    t = asyncio.create_task(load_map(cw.canvas))
+    asyncio.create_task(load_map(cw.canvas))
     await cw.async_mainloop()
 
 
