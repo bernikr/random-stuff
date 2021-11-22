@@ -6,9 +6,12 @@ import os
 import time
 import zlib
 from dataclasses import dataclass, field
+from tkinter import Canvas
 
 import aiohttp as aiohttp
 from dotenv import load_dotenv
+
+from canvas import CanvasWindow
 
 logging.basicConfig(
     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
@@ -20,6 +23,7 @@ load_dotenv()
 HA_TOKEN = os.getenv('HA_TOKEN')
 HA_URL = os.getenv('HA_URL')
 MAP_ENTITY = 'camera.map_data'
+
 
 @dataclass
 class Chunk:
@@ -53,7 +57,44 @@ async def get_x_mixed_replace(s, url):
                 length = 0
 
 
-async def main():
+def pixels_to_rects(pixels):
+    pixel_set = set(pixels)
+
+    for tl in sorted(pixel_set):
+        if tl not in pixel_set:
+            continue
+        pixel_set.remove(tl)
+
+        br = [tl[0] + 1, tl[1] + 1]
+
+        changed = True
+        while changed:
+            changed = False
+            if all((i, br[1]) in pixel_set for i in range(tl[0], br[0])):
+                pixel_set.difference_update((i, br[1]) for i in range(tl[0], br[0]))
+                br[1] += 1
+                changed = True
+            if all((br[0], i) in pixel_set for i in range(tl[1], br[1])):
+                pixel_set.difference_update((br[0], i) for i in range(tl[1], br[1]))
+                br[0] += 1
+                changed = True
+        yield *tl, *br
+
+
+def draw_layer(c: Canvas, layer, s):
+    #if layer['type'] == 'wall':
+    pixels = layer['pixels']
+    pixels = zip(pixels[0::2], pixels[1::2])
+
+    for x1, y1, x2, y2 in pixels_to_rects(pixels):
+        c.create_rectangle(x1*s, y1*s, x2*s, y2*s)
+
+
+def draw_entities(c: Canvas, e):
+    pass
+
+
+async def load_map(c: Canvas):
     async with aiohttp.ClientSession(headers={'Authorization': f'Bearer {HA_TOKEN}'}) as s:
         async with s.get(f'{HA_URL}/api/states/{MAP_ENTITY}') as r:
             img_token = (await r.json())['attributes']['access_token']
@@ -63,9 +104,20 @@ async def main():
                             if c.type == 'zTXt' and c.data.startswith(b'ValetudoMap\0'))
             map_data = zlib.decompress(map_data)
             map_data = json.loads(map_data)
+            logging.info('new map data')
+            c.delete('all')
+            for l in map_data['layers']:
+                draw_layer(c, l, map_data['pixelSize'])
+            #for e in map_data['entities']:
+            #    draw_entities(c, e)
 
-            logging.info("new map data")
+
+async def main():
+    cw = CanvasWindow()
+    t = asyncio.create_task(load_map(cw.canvas))
+    await cw.async_mainloop()
 
 
 if __name__ == '__main__':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
