@@ -16,7 +16,7 @@ def add_scale_transform(t, s):
     return t
 
 
-class ResizingCanvas(tk.Canvas):
+class Canvas(tk.Canvas):
     transform = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
     def __init__(self, parent, **kwargs):
@@ -24,6 +24,7 @@ class ResizingCanvas(tk.Canvas):
         self.bind("<Configure>", self.on_resize)
         self.height = self.winfo_reqheight()
         self.width = self.winfo_reqwidth()
+        self._layers = []
 
     def on_resize(self, event):
         self.config(width=self.width, height=self.height)
@@ -39,11 +40,25 @@ class ResizingCanvas(tk.Canvas):
             self.transform = add_scale_transform(self.transform, (xo, yo, xs, ys))
         super().scale(tag, xo, yo, xs, ys)
 
+    def add_to_layer(self, layer, command, coords, **kwargs):
+        layer_tag = "layer %s" % layer
+        if layer_tag not in self._layers:
+            self._layers.append(layer_tag)
+        tags = kwargs.setdefault("tags", [])
+        tags.append(layer_tag)
+        item_id = command(*coords, **kwargs)
+        self._adjust_layers()
+        return item_id
 
-class ScrolFrame(tk.Frame):
+    def _adjust_layers(self):
+        for layer in sorted(self._layers):
+            self.lift(layer)
+
+
+class ScrollFrame(tk.Frame):
     def __init__(self, root):
         tk.Frame.__init__(self, root)
-        self.canvas = ResizingCanvas(self, width=400, height=400)
+        self.canvas = Canvas(self, width=400, height=400)
         self.pack(fill=tk.BOTH, expand=tk.YES)
         self.canvas.pack(fill=tk.BOTH, expand=tk.YES)
 
@@ -83,7 +98,7 @@ class ScrolFrame(tk.Frame):
 class CanvasWindow:
     def __init__(self):
         self._root = tk.Tk()
-        self._frame = ScrolFrame(self._root)
+        self._frame = ScrollFrame(self._root)
 
     @property
     def canvas(self) -> tk.Canvas:

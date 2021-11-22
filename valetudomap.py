@@ -3,15 +3,14 @@ import cgi
 import json
 import logging
 import os
-import time
 import zlib
+from collections import defaultdict
 from dataclasses import dataclass, field
-from tkinter import Canvas
 
 import aiohttp as aiohttp
 from dotenv import load_dotenv
 
-from canvas import CanvasWindow
+from canvas import CanvasWindow, Canvas
 
 logging.basicConfig(
     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
@@ -81,27 +80,55 @@ def pixels_to_rects(pixels):
         yield *tl, *br
 
 
+COLOR_LIST = [
+    '#E85959',
+    '#E8C659',
+    '#504DA2',
+    '#47BA47',
+]
+
+
 def get_layer_drawing_options(layer):
     lt = layer['type']
     if lt == 'wall':
         return {'fill': 'black', 'width': 0}
     elif lt == 'floor':
-        return {'fill': 'gray', 'width': 0}
+        return {'fill': 'gray', 'width': 0, 'stipple': 'gray12'}
+    elif lt == 'segment':
+        return {'fill': COLOR_LIST[layer['metaData']['segmentId']-1], 'width': 0}
     else:
-        assert False, f'Unkown layer type `{lt}`'
+        assert False, f'Unknown layer type `{lt}`'
+
+
+LAYERS = defaultdict(lambda: 0)
+LAYERS.update({
+    'wall': 3,
+    'floor': 2,
+    'segment': 1,
+})
 
 
 def draw_layer(c: Canvas, layer, s):
     pixels = layer['pixels']
     pixels = zip(pixels[0::2], pixels[1::2])
-
     for x1, y1, x2, y2 in pixels_to_rects(pixels):
-        c.create_rectangle(x1*s, y1*s, x2*s, y2*s, **get_layer_drawing_options(layer))
+        c.add_to_layer(LAYERS[layer['type']],
+                       c.create_rectangle, (x1*s, y1*s, x2*s, y2*s), **get_layer_drawing_options(layer))
 
 
 def draw_entities(c: Canvas, e):
-    pass
-
+    cl = e['__class']
+    if cl == 'PointMapEntity':
+        s = 10
+        x, y = e['points']
+        c.create_oval(x-s, y-s, x+s, y+s, fill='black')
+    elif cl == 'PolygonMapEntity':
+        c.create_polygon(*e['points'], fill='', width=2, outline='red')
+    elif cl == 'PathMapEntity':
+        if len(e['points']) >= 4:
+            c.create_line(*e['points'], width=2, fill='black')
+    else:
+        assert False, f'Unknown entity class `{cl}`'
 
 async def load_map(c: Canvas):
     async with aiohttp.ClientSession(headers={'Authorization': f'Bearer {HA_TOKEN}'}) as s:
@@ -117,8 +144,8 @@ async def load_map(c: Canvas):
             c.delete('all')
             for l in map_data['layers']:
                 draw_layer(c, l, map_data['pixelSize'])
-            #for e in map_data['entities']:
-            #    draw_entities(c, e)
+            for e in map_data['entities']:
+                draw_entities(c, e)
 
 
 async def main():
