@@ -1,6 +1,7 @@
 import asyncio
 import cgi
 import json
+import logging
 import os
 import time
 import zlib
@@ -8,7 +9,12 @@ from dataclasses import dataclass, field
 
 import aiohttp as aiohttp
 from dotenv import load_dotenv
-import requests
+
+logging.basicConfig(
+    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    level=logging.DEBUG
+)
 
 load_dotenv()
 HA_TOKEN = os.getenv('HA_TOKEN')
@@ -52,16 +58,13 @@ async def main():
         async with s.get(f'{HA_URL}/api/states/{MAP_ENTITY}') as r:
             img_token = (await r.json())['attributes']['access_token']
 
-        lasttime = time.time()
         async for img in get_x_mixed_replace(s, f'{HA_URL}/api/camera_proxy_stream/{MAP_ENTITY}?token={img_token}'):
             map_data = next(c.data[13:] for c in parse_png_chunks(img)
                             if c.type == 'zTXt' and c.data.startswith(b'ValetudoMap\0'))
             map_data = zlib.decompress(map_data)
             map_data = json.loads(map_data)
 
-            print("--map_data")
-            print(f"{time.time()-lasttime:.2f}s")
-            lasttime = time.time()
+            logging.info("new map data")
         print("end")
 
 
