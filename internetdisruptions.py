@@ -13,7 +13,7 @@ INFLUX_TOKEN = os.getenv('INFLUX_TOKEN')
 INFLUX_ORG = os.getenv('INFLUX_ORG')
 
 start = "2020-05-01"
-#start = "2021-11-01"
+# start = "2021-11-01"
 stop = "now()"
 
 query = f"""import "math"
@@ -45,6 +45,7 @@ class Disruption:
     def __repr__(self):
         return f"{format_datatime(self.start)} - {format_datatime(self.end)}; Duration: {self.duration}"
 
+
 def parse_disruptions(res):
     current_start = None
     for i, line in enumerate(res.iter_lines()):
@@ -61,8 +62,8 @@ def parse_disruptions(res):
         if current_start is None and v > 0.7:
             current_start = t
         elif current_start is not None and v < 0.3:
-            yield(Disruption(start=dateutil.parser.isoparse(current_start.decode()),
-                             end=dateutil.parser.isoparse(t.decode())))
+            yield Disruption(start=dateutil.parser.isoparse(current_start.decode()),
+                             end=dateutil.parser.isoparse(t.decode()))
             current_start = None
 
 
@@ -74,8 +75,6 @@ def main():
     r = requests.post(f"{INFLUX_URL}/api/v2/query?org={INFLUX_ORG}", headers=headers, data=query, stream=True)
     for dis in parse_disruptions(r):
         print(dis)
-
-
 
 
 if __name__ == '__main__':
