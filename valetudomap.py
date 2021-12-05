@@ -108,9 +108,16 @@ LAYERS.update({
 })
 
 
+def uncompress(compressed_pixels):
+    pixels = []
+    for xstart, y, count in zip(compressed_pixels[0::3], compressed_pixels[1::3], compressed_pixels[2::3]):
+        for i in range(count):
+            pixels.append((xstart+i, y))
+    return sorted(pixels)
+
+
 def draw_layer(c: Canvas, layer, s):
-    pixels = layer['pixels']
-    pixels = zip(pixels[0::2], pixels[1::2])
+    pixels = uncompress(layer['compressedPixels'])
     for x1, y1, x2, y2 in pixels_to_rects(pixels):
         c.add_to_layer(LAYERS[layer['type']],
                        c.create_rectangle, (x1*s, y1*s, x2*s, y2*s), **get_layer_drawing_options(layer))
