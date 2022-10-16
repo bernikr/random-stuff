@@ -21,7 +21,7 @@ logging.basicConfig(
 load_dotenv()
 HA_TOKEN = os.getenv('HA_TOKEN')
 HA_URL = os.getenv('HA_URL')
-MAP_ENTITY = 'camera.map_data'
+MAP_ENTITY = os.getenv('HA_VALETUDO_MAP_ENTITY')
 
 
 @dataclass
@@ -141,7 +141,8 @@ def draw_entities(c: Canvas, e):
 async def load_map(c: Canvas):
     async with aiohttp.ClientSession(headers={'Authorization': f'Bearer {HA_TOKEN}'}) as s:
         async with s.get(f'{HA_URL}/api/states/{MAP_ENTITY}') as r:
-            img_token = (await r.json())['attributes']['access_token']
+            res = await r.json()
+            img_token = res['attributes']['access_token']
 
         async for img in get_x_mixed_replace(s, f'{HA_URL}/api/camera_proxy_stream/{MAP_ENTITY}?token={img_token}'):
             map_data = next(c.data[13:] for c in parse_png_chunks(img)
