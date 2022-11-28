@@ -95,7 +95,7 @@ def get_layer_drawing_options(layer):
     elif lt == 'floor':
         return {'fill': 'gray', 'width': 0, 'stipple': 'gray12'}
     elif lt == 'segment':
-        return {'fill': COLOR_LIST[layer['metaData']['segmentId']-1], 'width': 0}
+        return {'fill': COLOR_LIST[int(layer['metaData']['segmentId'])-1], 'width': 0}
     else:
         assert False, f'Unknown layer type `{lt}`'
 
