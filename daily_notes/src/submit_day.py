@@ -1,6 +1,7 @@
 import datetime
 import os
 from itertools import groupby
+from pathlib import Path
 
 from dotenv import load_dotenv
 import gspread
@@ -76,7 +77,7 @@ def submit_day(api: NotesApi, name: str, date: datetime.date):
     data = api.get_data(date)
     row_data = note_data_to_row(data, date, name)
 
-    gc = gspread.service_account()
+    gc = gspread.service_account(filename=Path(__file__).parent.parent / "service_account.json")
     wks = gc.open_by_key(STATS_SHEET).worksheet("Raw-Data")
 
     header = wks.row_values(1)

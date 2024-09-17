@@ -1,3 +1,4 @@
 .idea/
 .env
 *.pyc
+/daily_notes/service_account.json

@@ -1,0 +1,10 @@
+services:
+  stats:
+    build: ./src
+    restart: always
+    volumes:
+      - ${OBSIDIAN_FOLDER}:/notes
+      - ./service_account.json:/service_account.json
+      - ./.env:/src/.env
+    environment:
+      - OBSIDIAN_FOLDER=/notes

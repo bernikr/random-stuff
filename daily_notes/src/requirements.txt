@@ -1,0 +1,5 @@
+PyYAML~=6.0.2
+icalevents~=0.1.29
+python-dotenv~=1.0.1
+gspread~=6.1.2
+pymoment~=0.0.6
