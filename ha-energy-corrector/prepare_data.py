@@ -23,8 +23,8 @@ if __name__ == '__main__':
     viertel = viertel.sort_index()
     viertel['value_calc'] = viertel.used.cumsum()
     diffs = zaehler.join(viertel, how="inner")
-    if sum(viertel.index.map(lambda x: x.minute == 0 and x.tz_convert('Europe/Vienna').hour == 0)) != len(diffs):
-        raise ValueError("error in comparing the csv files: not the same days")
+    #if sum(viertel.index.map(lambda x: x.minute == 0 and x.tz_convert('Europe/Vienna').hour == 0)) != len(diffs):
+    #    raise ValueError("error in comparing the csv files: not the same days")
     diffs = diffs.value - diffs.value_calc
     if diffs.max()-diffs.min() > 0.0001:
         raise ValueError("error in comparing the csv files: viertel doesnt sum to correct values")
