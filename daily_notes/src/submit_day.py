@@ -13,7 +13,7 @@ HAPPINESS_SELECTION = ["", "Viel schlechter als Normal", "Schlechter als Normal"
                        "Viel besser als Normal"]
 
 
-def note_data_to_row(data: dict, date: datetime.date, name: str) -> dict:
+def note_data_to_row(data: dict, date: datetime.date, name: str, friends_filter: list[str] = None) -> dict:
     row = {
         "Zeitstempel": datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
         "Datum": date.strftime("%d.%m.%Y"),
@@ -40,7 +40,7 @@ def note_data_to_row(data: dict, date: datetime.date, name: str) -> dict:
         row["Masturbiert"] = d
 
     if (d := data.get("friends-met")) is not None:
-        row["Freunde getroffen"] = ", ".join(d)
+        row["Freunde getroffen"] = ", ".join((f for f in d if not friends_filter or f in friends_filter))
 
     if (d := data.get("sport")) is not None:
         row["Sport"] = ", ".join(d)
@@ -74,24 +74,28 @@ def note_data_to_row(data: dict, date: datetime.date, name: str) -> dict:
 
 
 def submit_day(api: NotesApi, name: str, date: datetime.date):
-    data = api.get_data(date)
-    row_data = note_data_to_row(data, date, name)
-
     gc = gspread.service_account(filename=Path(__file__).parent.parent / "service_account.json")
-    wks = gc.open_by_key(STATS_SHEET).worksheet("Raw-Data")
+    stats_file = gc.open_by_key(STATS_SHEET)
 
-    header = wks.row_values(1)
+    friends = stats_file.worksheet("Help-Data").col_values(5)
+
+    data = api.get_data(date)
+    row_data = note_data_to_row(data, date, name, friends)
+
+    data_sheet = stats_file.worksheet("Raw-Data")
+    header = data_sheet.row_values(1)
     row = [str(row_data.get(c, "")) for c in header]
 
-    entries = wks.get("B2:C")
+    entries = data_sheet.get("B2:C")
     existing = [i + 2 for i, entry in enumerate(entries) if entry == [row_data["Datum"], name]]
     if existing:
         row_id = max(existing)
-        res = wks.get(f"R{row_id}C2:R{row_id}C{len(row)}")
-        if res[0] + [''] * (len(row)-len(res[0])-1) != row[1:]:
-            wks.update([row[1:]], f"R{row_id}C2:R{row_id}C{len(row)}", raw=False)
+        res = data_sheet.get(f"R{row_id}C2:R{row_id}C{len(row)}")
+        if res[0] + [''] * (len(row) - len(res[0]) - 1) != row[1:]:
+            data_sheet.update([row[1:]], f"R{row_id}C2:R{row_id}C{len(row)}", raw=False)
     else:
-        wks.append_row(row, value_input_option=ValueInputOption.user_entered, insert_data_option=InsertDataOption.insert_rows)
+        data_sheet.append_row(row, value_input_option=ValueInputOption.user_entered,
+                              insert_data_option=InsertDataOption.insert_rows)
 
 
 if __name__ == '__main__':
@@ -101,4 +105,4 @@ if __name__ == '__main__':
     STATS_SHEET = os.getenv('STATS_SHEET')
 
     n = NotesApi(OBSIDIAN_FOLDER)
-    submit_day(n, STATS_NAME, (datetime.datetime.now()-datetime.timedelta(days=1)).date())
+    submit_day(n, STATS_NAME, (datetime.datetime.now() - datetime.timedelta(days=1)).date())
