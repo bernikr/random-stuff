@@ -109,4 +109,7 @@ if __name__ == '__main__':
     for f in n.daily_folder.glob('**/*.md'):
         mod_time = datetime.datetime.fromtimestamp(f.stat().st_mtime)
         if now - mod_time < datetime.timedelta(days=1):
-            submit_day(n, STATS_NAME, datetime.date.fromisoformat(f.stem))
+            try:
+                submit_day(n, STATS_NAME, datetime.date.fromisoformat(f.stem))
+            except ValueError:
+                pass
