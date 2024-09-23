@@ -67,8 +67,10 @@ class NotesApi:
                 case CreateMode.IGNORE:
                     pass
                 case CreateMode.TEMPLATE:
+                    file.parent.mkdir(parents=True, exist_ok=True)
                     file.write_text((self.folder / f"{self.config['template']}.md").read_text())
                 case CreateMode.EMPTY:
+                    file.parent.mkdir(parents=True, exist_ok=True)
                     file.touch()
                 case _:
                     raise NotImplementedError()
