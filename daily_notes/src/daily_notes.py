@@ -1,14 +1,11 @@
 import datetime
 import json
-import os
 from enum import Enum, auto
 from pathlib import Path
 from typing import TextIO
 
 import yaml
 from moment import moment
-
-from dotenv import load_dotenv
 
 
 def dict_merge(x, y, prefer_right=False):
@@ -59,8 +56,12 @@ class NotesApi:
             raise IOError('Could not find Daily Notes config')
         self.config = json.loads(config_file.read_text())
 
+    @property
+    def daily_folder(self):
+        return self.folder / self.config['folder']
+
     def _get_file(self, date: datetime.date, create: CreateMode = CreateMode.IGNORE) -> Path:
-        file = self.folder / self.config['folder'] / f"{moment(date.isoformat()).format(self.config['format'])}.md"
+        file = self.daily_folder / f"{moment(date.isoformat()).format(self.config['format'])}.md"
         if not file.is_file():
             match create:
                 case CreateMode.IGNORE:
@@ -92,13 +93,3 @@ class NotesApi:
             f.seek(0)
             dump_note(f, note, note_data)
         return True
-
-
-if __name__ == '__main__':
-    load_dotenv()
-    OBSIDIAN_FOLDER = os.getenv('OBSIDIAN_FOLDER')
-
-    n = NotesApi(OBSIDIAN_FOLDER)
-    res = n.add_data(datetime.date(2024, 9, 19), {"asd": "asd"}, create=CreateMode.IGNORE)
-    print(res)
-    pass

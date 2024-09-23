@@ -105,4 +105,8 @@ if __name__ == '__main__':
     STATS_SHEET = os.getenv('STATS_SHEET')
 
     n = NotesApi(OBSIDIAN_FOLDER)
-    submit_day(n, STATS_NAME, (datetime.datetime.now() - datetime.timedelta(days=1)).date())
+    now = datetime.datetime.now()
+    for f in n.daily_folder.glob('**/*.md'):
+        mod_time = datetime.datetime.fromtimestamp(f.stat().st_mtime)
+        if now - mod_time < datetime.timedelta(days=1):
+            submit_day(n, STATS_NAME, datetime.date.fromisoformat(f.stem))
