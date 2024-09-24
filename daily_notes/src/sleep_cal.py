@@ -23,7 +23,9 @@ if __name__ == '__main__':
 
     n = NotesApi(OBSIDIAN_FOLDER)
 
-    all_events = icalevents.events(SLEEP_ICAL, start=datetime.now() - timedelta(days=3))
+    start_day = datetime.now().date() - timedelta(days=7)
+
+    all_events = icalevents.events(SLEEP_ICAL, start=start_day)
     for day, events in groupby(sorted(all_events, key=lambda e: e.end.date()), lambda e: e.end.date()):
         total_sleep = sum(map(get_sleep_minutes, events))
         n.add_data(day, {"sleep-duration": round(total_sleep / 60, 2)},
