@@ -91,7 +91,8 @@ class NotesApi:
             return False
         with file.open("r+") as f:
             note, note_data = load_note(f)
-            note_data = dict_merge(note_data, data, overwrite)
-            f.seek(0)
-            dump_note(f, note, note_data)
+            new_note_data = dict_merge(note_data, data, overwrite)
+            if new_note_data != note_data:
+                f.seek(0)
+                dump_note(f, note, new_note_data)
         return True
