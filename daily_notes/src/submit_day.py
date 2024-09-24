@@ -27,8 +27,8 @@ def note_data_to_row(data: dict, date: datetime.date, name: str, friends_filter:
         row["Krank?"] = "Ja"
 
     if (d := data.get("sleep-duration")) is not None:
-        h, m = divmod(int(d * 60), 60)
-        row["Schlaf"] = f"{h:d}:{m:02d}:00"
+        h, m = divmod(d * 60, 60)
+        row["Schlaf"] = f"{h:.0f}:{m:02.0f}:00"
 
     if (d := data.get("shits")) is not None:
         row["Toilettengänge"] = d
@@ -55,8 +55,8 @@ def note_data_to_row(data: dict, date: datetime.date, name: str, friends_filter:
         row["Buch fertig gelesen"] = d
 
     if (d := data.get("watchtime")) is not None:
-        h, m = divmod(int(d * 60), 60)
-        row["Medienwatchtime"] = f"{h:d}:{m:02d}:00"
+        h, m = divmod(d * 60, 60)
+        row["Medienwatchtime"] = f"{h:.0f}:{m:02.0f}:00"
 
     if (d := data.get("food")) is not None:
         row["Diät"] = ", ".join(d)
@@ -73,32 +73,34 @@ def note_data_to_row(data: dict, date: datetime.date, name: str, friends_filter:
     return row
 
 
-def submit_day(api: NotesApi, name: str, date: datetime.date):
+def submit_days(api: NotesApi, name: str, sheet: str, dates: list[datetime.date]):
     gc = gspread.service_account(filename=Path(__file__).parent.parent / "service_account.json")
-    stats_file = gc.open_by_key(STATS_SHEET)
+    stats_file = gc.open_by_key(sheet)
 
     friends = stats_file.worksheet("Help-Data").col_values(5)
 
-    data = api.get_data(date)
-    row_data = note_data_to_row(data, date, name, friends)
-
     data_sheet = stats_file.worksheet("Raw-Data")
-    header = data_sheet.row_values(1)
-    row = [str(row_data.get(c, "")) for c in header]
+    entries = data_sheet.get_all_values()
+    header = entries[0]
 
-    entries = data_sheet.get("B2:C")
-    existing = [i + 2 for i, entry in enumerate(entries) if entry == [row_data["Datum"], name]]
-    if existing:
-        row_id = max(existing)
-        res = data_sheet.get(f"R{row_id}C2:R{row_id}C{len(row)}")
-        if res[0] + [''] * (len(row) - len(res[0]) - 1) != row[1:]:
-            data_sheet.update([row[1:]], f"R{row_id}C2:R{row_id}C{len(row)}", raw=False)
-    else:
-        data_sheet.append_row(row, value_input_option=ValueInputOption.user_entered,
-                              insert_data_option=InsertDataOption.insert_rows)
+    for date in dates:
+        data = api.get_data(date)
+        row_data = note_data_to_row(data, date, name, friends)
+
+        row = [str(row_data.get(c, "")) for c in header]
+
+        existing = [i + 1 for i, entry in enumerate(entries) if entry[1] == row_data["Datum"] and entry[2] == name]
+        if existing:
+            row_id = max(existing)
+            existing_row = entries[row_id - 1]
+            if existing_row[1:] != row[1:]:
+                data_sheet.update([row[1:]], f"R{row_id}C2:R{row_id}C{len(row)}", raw=False)
+        else:
+            data_sheet.append_row(row, value_input_option=ValueInputOption.user_entered,
+                                  insert_data_option=InsertDataOption.insert_rows)
 
 
-if __name__ == '__main__':
+def main():
     load_dotenv()
     OBSIDIAN_FOLDER = os.getenv('OBSIDIAN_FOLDER')
     STATS_NAME = os.getenv('STATS_NAME')
@@ -106,10 +108,18 @@ if __name__ == '__main__':
 
     n = NotesApi(OBSIDIAN_FOLDER)
     now = datetime.datetime.now()
+    dates = []
     for f in n.daily_folder.glob('**/*.md'):
         mod_time = datetime.datetime.fromtimestamp(f.stat().st_mtime)
         if now - mod_time < datetime.timedelta(days=1):
             try:
-                submit_day(n, STATS_NAME, datetime.date.fromisoformat(f.stem))
+                date = datetime.date.fromisoformat(f.stem)
             except ValueError:
-                pass
+                continue
+            if date.year == 2024:
+                dates.append(date)
+    submit_days(n, STATS_NAME, STATS_SHEET, dates)
+
+
+if __name__ == '__main__':
+    main()
