@@ -116,7 +116,7 @@ def main():
                 date = datetime.date.fromisoformat(f.stem)
             except ValueError:
                 continue
-            if date.year == 2024:
+            if date.year == 2024 and date != now.date():
                 dates.append(date)
     submit_days(n, STATS_NAME, STATS_SHEET, dates)
 
