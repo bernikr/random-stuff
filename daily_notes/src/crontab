@@ -1,2 +1,2 @@
-0/15 * * * * python3 /src/sleep_cal.py
-0 * * * * python3 /src/submit_day.py
+0,15,30,45 * * * * python3 /src/sleep_cal.py
+10 0,6,12,18 * * * python3 /src/submit_day.py
