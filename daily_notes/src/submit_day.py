@@ -3,19 +3,25 @@ import os
 from itertools import groupby
 from pathlib import Path
 
-from dotenv import load_dotenv
+import pytz
 import gspread
+from dotenv import load_dotenv
 from gspread.utils import ValueInputOption, InsertDataOption
 
 from daily_notes import NotesApi
 
 HAPPINESS_SELECTION = ["", "Viel schlechter als Normal", "Schlechter als Normal", "Normal", "Besser als Normal",
                        "Viel besser als Normal"]
+load_dotenv()
+OBSIDIAN_FOLDER = os.getenv('OBSIDIAN_FOLDER')
+STATS_NAME = os.getenv('STATS_NAME')
+STATS_SHEET = os.getenv('STATS_SHEET')
+TIMEZONE = pytz.timezone(os.getenv('TIMEZONE'))
 
 
 def note_data_to_row(data: dict, date: datetime.date, name: str, friends_filter: list[str] = None) -> dict:
     row = {
-        "Zeitstempel": datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+        "Zeitstempel": datetime.datetime.now(TIMEZONE).strftime("%d.%m.%Y %H:%M:%S"),
         "Datum": date.strftime("%d.%m.%Y"),
         "Name": name
     }
@@ -101,11 +107,6 @@ def submit_days(api: NotesApi, name: str, sheet: str, dates: list[datetime.date]
 
 
 def main():
-    load_dotenv()
-    OBSIDIAN_FOLDER = os.getenv('OBSIDIAN_FOLDER')
-    STATS_NAME = os.getenv('STATS_NAME')
-    STATS_SHEET = os.getenv('STATS_SHEET')
-
     n = NotesApi(OBSIDIAN_FOLDER)
     now = datetime.datetime.now()
     dates = []
