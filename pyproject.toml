@@ -1,0 +1,37 @@
+[project]
+name = "random-stuff"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyseagull==1.0.0b4",
+    "nonogram-solver==0.1",
+    "python-dotenv~=1.0.1",
+    "numpy~=1.26.4",
+    "matplotlib~=3.8.4",
+    "python-dateutil~=2.9.0.post0",
+    "requests~=2.31.0",
+    "beautifulsoup4~=4.12.3",
+    "pandas~=2.2.2",
+    "pytz~=2024.1",
+    "PyYAML~=6.0.2",
+    "icalevents~=0.1.29",
+    "ppf-datamatrix>=0.2",
+    "cairosvg>=2.7.1",
+    "svglib>=1.5.1",
+    "reportlab>=4.2.5",
+    "svg2png>=1.2",
+    "resvg-py>=0.1.5",
+    "resvg>=0.1.2",
+    "affine>=2.4.0",
+    "pillow>=11.0.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.6.9",
+]
+
+[tool.ruff.lint]
+select = ["Q"]
