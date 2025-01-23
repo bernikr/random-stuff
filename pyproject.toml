@@ -26,12 +26,22 @@ dependencies = [
     "resvg>=0.1.2",
     "affine>=2.4.0",
     "pillow>=11.0.0",
+    "pycryptodome>=3.21.0",
 ]
 
 [tool.uv]
-dev-dependencies = [
-    "ruff>=0.6.9",
-]
+dev-dependencies = ["ruff>=0.6.9"]
+
+[tool.ruff]
+line-length = 120
 
 [tool.ruff.lint]
-select = ["Q"]
+preview = true
+select = ["ALL"]
+ignore = [
+    "E731",   # lambda assigning to a variable
+    "INP001", # Implicit namespace package
+    "D",      # pydocstyle
+    "CPY",    # flake8-copyright
+    "T20",    # flake8-print
+]
