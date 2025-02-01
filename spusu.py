@@ -1,61 +1,87 @@
 import os
 import re
-from base64 import b64encode
+from pprint import pprint
 
 import requests
-from bs4 import BeautifulSoup
-from Crypto.Cipher import PKCS1_v1_5  # noqa: S413
-from Crypto.PublicKey import RSA  # noqa: S413
 from dotenv import load_dotenv
 
 load_dotenv()
 SPUSU_PHONE = os.getenv("SPUSU_PHONE")
 SPUSU_PASSWORD = os.getenv("SPUSU_PASSWORD")
 
+default_data = {
+    "OperatingSystem": "Android",
+    "AppVersionCode": "36",
+    "AppFlavour": "spusu",
+}
+
 if __name__ == "__main__":
     s = requests.session()
-    resp = s.get("https://www.spusu.at/login")
-
-    # login not required when connected through mobile network
-    if not resp.url.startswith("https://www.spusu.at/meinspusu"):
-        pub_key = BeautifulSoup(resp.text, "html.parser").find(id="encryptionPublicKey").attrs["value"]
-        cipher = PKCS1_v1_5.new(RSA.importKey(f"-----BEGIN PUBLIC KEY-----\n{pub_key}\n-----END PUBLIC KEY-----"))
-        encrypted_password = b64encode(cipher.encrypt(SPUSU_PASSWORD.encode())).decode()
-        resp = s.post(
-            "https://www.spusu.at/login?al=0",
-            data={
-                "action": "Login",
-                "pwdTan": encrypted_password,
-                "username": SPUSU_PHONE,
-            },
-        )
-    if not resp.url.startswith("https://www.spusu.at/meinspusu"):
+    resp = s.post(
+        "https://www.spusu.at/imoscms/spusuapplogin",
+        data=default_data
+        | {
+            "Action": "login",
+            "Number": SPUSU_PHONE,
+            "Pwd": SPUSU_PASSWORD,
+        },
+    )
+    if resp.status_code != 200:  # noqa: PLR2004
         msg = "Login failed"
         raise Exception(msg)  # noqa: TRY002
-    soup = BeautifulSoup(resp.text, "html.parser").select_one("form[name='customerform']")
-    gauges = soup.find_all("div", class_="graphCircle")
+    tariff_id = resp.json()["billingTariffId"]
+    resp = s.post(
+        "https://www.spusu.at/imoscms/spusuappdata",
+        data=default_data
+        | {
+            "Action": "simstatus",
+        },
+    )
+    if resp.status_code != 200:  # noqa: PLR2004
+        msg = "Couldnt get data"
+        raise Exception(msg)  # noqa: TRY002
+    data = resp.json()
     res = {}
-    gauge_regex = re.compile(r"^([\d\.]+) / ([\d\.]+) (.+)$")
-    units = {"Minuten": "minutes", "SMS": "sms", "GB": "base_data", "Bonus MB": "bonus_data"}
-    for g in gauges:
-        used, total, unit = gauge_regex.findall(g.text.strip().replace(",", "."))[0]
-        used = int(used) if unit != "GB" else int(float(used) * 1000)
-        total = int(total) if unit != "GB" else int(float(total) * 1000)
-        res[f"{units[unit]}_used"] = used
-        res[f"{units[unit]}_total"] = total
-        res[f"{units[unit]}_remaining"] = total - used
+    KEYS = {
+        "Minuten": "minutes",
+        "SMS": "sms",
+        "MB": "base_data",
+        "Bonus MB": "bonus_data",
+        "Total Data": "data",
+        "EU data": "eu_data",
+        "Inland Tel. & SMS": "extra_usage",
+        "Kostenlimit Daten": "extra_data",
+        "Roaming Tel. & SMS": "roaming_usage",
+        "Roaming Daten": "roaming_data",
+    }
+    normalizations = {
+        "MoneyAmount": lambda x, b: round(x * (1 + b["vat"] / 100), 2),
+        "KB": lambda x, _: int(round(x / 1024, 0)),
+        "Seconds": lambda x, _: int(round(x / 60, 0)),
+        "Events": lambda x, _: int(x),
+    }
+    for b in (b for bs in data["balancesByLimitUnitByTariffId"][str(tariff_id)].values() for b in bs):
+        used = normalizations[b["limitUnit"]](b["usedUnits"], b)
+        limit = normalizations[b["limitUnit"]](b["maxUnits"], b)
+        label = KEYS[b["caption"]]
+        res[f"{label}_used"] = used
+        res[f"{label}_limit"] = limit
+        res[f"{label}_remaining"] = limit - used
+
     res["data_used"] = res["base_data_used"] + res["bonus_data_used"]
-    res["data_total"] = res["base_data_total"] + res["bonus_data_total"]
+    res["data_limit"] = res["base_data_limit"] + res["bonus_data_limit"]
     res["data_remaining"] = res["base_data_remaining"] + res["bonus_data_remaining"]
     res["eu_data_remaining"] = int(
-        re.findall(r"Es stehen noch (\d+) Frei MB im EU Roaming zur Verfügung.", soup.text)[0],
+        re.findall(
+            r"Es stehen noch (\d+) Frei MB im EU Roaming zur Verfügung.",
+            data["additionalInfoByTariffId"][str(tariff_id)][0],
+        )[0],
     )
-    limits = re.findall(r"([\d\.]+) € von maximal ([\d\.]+) €", soup.text.replace(",", "."))
-    for (spent, limit), usage in zip(
-        limits,
-        ["extra_usage", "extra_data", "roaming_usage", "roaming_data"],
-        strict=False,
-    ):
-        res[f"{usage}_spent"] = float(spent)
-        res[f"{usage}_limit"] = float(limit)
-    print(res)
+
+    sorting_order = {}
+    for i, k in enumerate(KEYS.values()):
+        sorting_order[f"{k}_used"] = i * 3
+        sorting_order[f"{k}_limit"] = i * 3 + 1
+        sorting_order[f"{k}_remaining"] = i * 3 + 2
+    res = dict(sorted(res.items(), key=lambda x: sorting_order[x[0]]))
+    pprint(res, sort_dicts=False)
