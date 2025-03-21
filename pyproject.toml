@@ -44,4 +44,5 @@ ignore = [
     "D",      # pydocstyle
     "CPY",    # flake8-copyright
     "T20",    # flake8-print
+    "PGH003", # Use specific rule codes when using type ignore
 ]
