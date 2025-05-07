@@ -24,7 +24,7 @@ def main() -> None:
                 continue
             print(f"Processing {f.name}")
             msg_count = m.folder.status(f.name)["MESSAGES"]
-            for msg in tqdm(m.fetch(), total=msg_count):
+            for msg in tqdm(m.fetch(bulk=20), total=msg_count):
                 for a in msg.attachments:
                     if a.filename.endswith(".pdf"):
                         try:
