@@ -1,9 +1,7 @@
 import csv
-from hmac import new
 import json
 import os
 from pathlib import Path
-from re import A
 
 import requests
 from tqdm import tqdm
