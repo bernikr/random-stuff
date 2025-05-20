@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 import requests
-from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 APPLIST_FOLDER = Path(os.getenv("APPLIST_FOLDER", ""))
@@ -24,17 +23,33 @@ if __name__ == "__main__":
 
     urls = []
     for app in tqdm(apps):
-        res = requests.get(f"https://apkpure.net/-/{app['Package']}/versions", timeout=10)
-        if res.status_code != requests.codes.ok:
-            print(f"App {app['Name']} not found on apkpure")
-            continue
-        s = BeautifulSoup(res.text, "html.parser")
-        avaible_version = int(
-            s.select_one("ul.version-list li:first-child div.version-info a").attrs["data-dt-version-code"],  # type: ignore
+        res = requests.get(
+            f"https://tapi.pureapk.com/v3/get_app_his_version?package_name={app['Package']}&hl=en",
+            headers={
+                "Ual-Access-Businessid": "projecta",
+                "Ual-Access-ProjectA": r'{"device_info":{"os_ver":"36"}}',
+            },
+            timeout=10,
         )
+        if res.status_code != requests.codes.ok:
+            print(f"App {app['Name']} not found on apkpure API")
+            continue
+
+        url = f"https://apkpure.net/-/{app['Package']}"
+        res2 = requests.get(url, timeout=1)
+        if res2.status_code == requests.codes.ok:
+            url = res2.url
+
+        versions = res.json()["version_list"]
+        if len(versions) == 0:
+            print(f"App {app['Name']} has no versions")
+            continue
+        avaible_version = int(versions[0]["version_code"])
         installed_version = int(app["Version"].split("(")[-1].split(")")[0])
         if avaible_version < installed_version:
-            print(f"App {app['Name']} is outdated")
-            continue
-        urls.append(res.url)
+            print(
+                f"App {app['Name']} is outdated (installed: {app["Version"]}, latest: {versions[0]['version_name']} ({versions[0]['version_code']}))"
+            )
+
+        urls.append(url)
     (APPLIST_FOLDER / f"{file.stem}.apkpure.txt").write_text("\n".join(urls), newline="\n")
