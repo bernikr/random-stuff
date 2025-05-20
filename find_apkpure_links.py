@@ -44,11 +44,13 @@ if __name__ == "__main__":
         if len(versions) == 0:
             print(f"App {app['Name']} has no versions")
             continue
-        avaible_version = int(versions[0]["version_code"])
+        v = versions[0]
+        avaible_version = int(v["version_code"])
         installed_version = int(app["Version"].split("(")[-1].split(")")[0])
         if avaible_version < installed_version:
             print(
-                f"App {app['Name']} is outdated (installed: {app["Version"]}, latest: {versions[0]['version_name']} ({versions[0]['version_code']}))"
+                f"App {app['Name']} is outdated (installed: {app["Version"]}, "
+                f"latest: {v['version_name']} ({v['version_code']}))",
             )
 
         urls.append(url)
